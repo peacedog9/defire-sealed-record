@@ -29,6 +29,7 @@ jobs:
       - name: Run commit-pinned public verifier
         env:
           DEFIRE_SEALED_MIRROR_INDEX_URL: https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/daily-index.json
+          DEFIRE_SEALED_MIRROR_ISSUANCE_INDEX_URL: https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/issuance-index.json
         run: |
           curl -fsSL "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_SHA}/verify-latest-reveal.sh" -o verify-latest-reveal.sh
           chmod 0755 verify-latest-reveal.sh

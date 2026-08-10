@@ -5,8 +5,11 @@ set -euo pipefail
 
 BASE_URL="${DEFIRE_SEALED_BASE_URL:-https://decentralizedfire.com/wp-content/uploads/tools/sealed-record}"
 MIRROR_INDEX_URL="${DEFIRE_SEALED_MIRROR_INDEX_URL:-https://raw.githubusercontent.com/peacedog9/defire-sealed-record/main/daily-index.json}"
+MIRROR_ISSUANCE_INDEX_URL="${DEFIRE_SEALED_MIRROR_ISSUANCE_INDEX_URL:-https://raw.githubusercontent.com/peacedog9/defire-sealed-record/main/issuance-index.json}"
 BATCH_DATE="${DEFIRE_SEALED_BATCH:-}"
 LIMIT_SECONDS="${DEFIRE_SEALED_LIMIT_SECONDS:-120}"
+MATCH_ATTEMPTS="${DEFIRE_SEALED_MATCH_ATTEMPTS:-12}"
+MATCH_INTERVAL_SECONDS="${DEFIRE_SEALED_MATCH_INTERVAL_SECONDS:-10}"
 OTS_CLIENT="${DEFIRE_SEALED_OTS_CLIENT:-npx}"
 OPENSSL_CLIENT="${DEFIRE_SEALED_OPENSSL_CLIENT:-openssl}"
 
@@ -18,8 +21,17 @@ if [[ ! "$MIRROR_INDEX_URL" =~ ^https?://[^[:space:]]+$ ]]; then
   echo "INDEPENDENT FAILURE: mirror index URL must use HTTP or HTTPS" >&2
   exit 2
 fi
+if [[ ! "$MIRROR_ISSUANCE_INDEX_URL" =~ ^https?://[^[:space:]]+$ ]]; then
+  echo "INDEPENDENT FAILURE: mirror issuance index URL must use HTTP or HTTPS" >&2
+  exit 2
+fi
 if [[ ! "$LIMIT_SECONDS" =~ ^[0-9]+$ ]] || [[ "$LIMIT_SECONDS" -eq 0 ]]; then
   echo "INDEPENDENT FAILURE: time limit must be a positive integer" >&2
+  exit 2
+fi
+if [[ ! "$MATCH_ATTEMPTS" =~ ^[0-9]+$ ]] || [[ "$MATCH_ATTEMPTS" -eq 0 ]] \
+  || [[ ! "$MATCH_INTERVAL_SECONDS" =~ ^[0-9]+$ ]]; then
+  echo "INDEPENDENT FAILURE: match attempts must be positive and interval must be nonnegative" >&2
   exit 2
 fi
 for required in curl node python3 "$OPENSSL_CLIENT"; do
@@ -42,10 +54,23 @@ cleanup() {
 trap cleanup EXIT
 mkdir -p "$WORK_DIR/batch"
 
-curl -fsSL "$BASE_URL/index.json" -o "$WORK_DIR/live-index.json"
 curl -fsSL "$MIRROR_INDEX_URL" -o "$WORK_DIR/mirror-index.json"
-if ! cmp -s "$WORK_DIR/live-index.json" "$WORK_DIR/mirror-index.json"; then
-  echo "INDEPENDENT FAILURE: GitHub witness and live daily index differ" >&2
+curl -fsSL "$MIRROR_ISSUANCE_INDEX_URL" -o "$WORK_DIR/mirror-issuance-index.json"
+indexes_match=0
+for ((attempt = 1; attempt <= MATCH_ATTEMPTS; attempt += 1)); do
+  if curl -fsSL "$BASE_URL/index.json" -o "$WORK_DIR/live-index.json" \
+    && curl -fsSL "$BASE_URL/issuance/index.json" -o "$WORK_DIR/live-issuance-index.json" \
+    && cmp -s "$WORK_DIR/live-index.json" "$WORK_DIR/mirror-index.json" \
+    && cmp -s "$WORK_DIR/live-issuance-index.json" "$WORK_DIR/mirror-issuance-index.json"; then
+    indexes_match=1
+    break
+  fi
+  if (( attempt < MATCH_ATTEMPTS )); then
+    sleep "$MATCH_INTERVAL_SECONDS"
+  fi
+done
+if [[ "$indexes_match" -ne 1 ]]; then
+  echo "INDEPENDENT FAILURE: GitHub witness and live daily or issuance index differ after ${MATCH_ATTEMPTS} attempts" >&2
   exit 1
 fi
 

@@ -21,6 +21,6 @@ For full pick verification after the 7-day reveal, use the paste-ready command o
 
 ## Independent fresh-machine check
 
-The public [verification workflow](https://github.com/peacedog9/defire-sealed-record/actions/workflows/verify-latest-reveal.yml) runs on a new GitHub-hosted Ubuntu runner whenever either hash index changes, once daily, and on manual request. It first requires the commit-pinned GitHub index to byte-match DeFIRE's live index. Once a nonempty batch reveals, it runs the public verifier below 120 seconds and then alters one downloaded entry and requires a loud tamper failure.
+The public [verification workflow](https://github.com/peacedog9/defire-sealed-record/actions/workflows/verify-latest-reveal.yml) runs on a new GitHub-hosted Ubuntu runner whenever either hash index changes, once daily, and on manual request. It first requires both commit-pinned GitHub indexes to byte-match DeFIRE's live indexes, allowing a bounded propagation window because GitHub is witnessed before the live upload. Once a nonempty batch reveals, it runs the public verifier below 120 seconds and then alters one downloaded entry and requires a loud tamper failure.
 
 The repository and workflow commit no signal plaintext. Revealed files exist only in the runner's temporary directory and are deleted with the runner.
