@@ -1,16 +1,14 @@
 name: Verify latest revealed batch
 
+# 2026-08-10: the push trigger is gone on purpose. The issuance stamper
+# pushes a witness commit EVERY MINUTE, and each one touched daily-index.json,
+# so this workflow ran (and, while the public mirror was unreachable, failed
+# and emailed) 1440 times a day. Verification integrity does not need a run
+# per witness: the event that matters is the nightly reveal (00:15 UTC), and
+# the 02:23 UTC schedule below verifies it daily, plus workflow_dispatch for
+# on-demand runs. Do not re-add a push trigger while the stamper commits at
+# minute cadence.
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - daily-index.json
-      - issuance-index.json
-      - verify-latest-reveal.sh
-      - verify-public-issuance.py
-      - digicert_assured_id_root_ca.crt
-      - .github/workflows/verify-latest-reveal.yml
   schedule:
     - cron: "23 02 * * *"
   workflow_dispatch:
