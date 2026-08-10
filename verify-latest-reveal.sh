@@ -12,6 +12,9 @@ MATCH_ATTEMPTS="${DEFIRE_SEALED_MATCH_ATTEMPTS:-12}"
 MATCH_INTERVAL_SECONDS="${DEFIRE_SEALED_MATCH_INTERVAL_SECONDS:-10}"
 OTS_CLIENT="${DEFIRE_SEALED_OTS_CLIENT:-npx}"
 OPENSSL_CLIENT="${DEFIRE_SEALED_OPENSSL_CLIENT:-openssl}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ISSUANCE_HELPER="${DEFIRE_SEALED_ISSUANCE_HELPER:-$SCRIPT_DIR/verify-public-issuance.py}"
+RFC3161_ROOT="${DEFIRE_SEALED_RFC3161_ROOT:-$SCRIPT_DIR/digicert_assured_id_root_ca.crt}"
 
 if [[ ! "$BASE_URL" =~ ^https?://[^[:space:]]+$ ]]; then
   echo "INDEPENDENT FAILURE: base URL must use HTTP or HTTPS" >&2
@@ -37,6 +40,12 @@ fi
 for required in curl node python3 "$OPENSSL_CLIENT"; do
   if ! command -v "$required" >/dev/null 2>&1; then
     echo "INDEPENDENT FAILURE: $required is required" >&2
+    exit 2
+  fi
+done
+for required_file in "$ISSUANCE_HELPER" "$RFC3161_ROOT"; do
+  if [[ ! -f "$required_file" ]]; then
+    echo "INDEPENDENT FAILURE: required verifier asset is missing: $required_file" >&2
     exit 2
   fi
 done
@@ -74,6 +83,14 @@ if [[ "$indexes_match" -ne 1 ]]; then
   exit 1
 fi
 
+issuance_output="$(python3 "$ISSUANCE_HELPER" \
+  --index "$WORK_DIR/live-issuance-index.json" \
+  --base-url "$BASE_URL/issuance" \
+  --root "$RFC3161_ROOT" \
+  --openssl "$OPENSSL_CLIENT" \
+  --ots "$OTS_CLIENT")"
+echo "$issuance_output"
+
 if [[ -z "$BATCH_DATE" ]]; then
   BATCH_DATE="$(python3 - "$WORK_DIR/live-index.json" <<'PY'
 import json
@@ -100,7 +117,7 @@ if [[ -z "$BATCH_DATE" ]]; then
   message="PENDING: no revealed nonempty production batch exists yet"
   echo "$message"
   if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
-    printf '## DeFIRE independent verification\n\n%s\n' "$message" >> "$GITHUB_STEP_SUMMARY"
+    printf '## DeFIRE independent verification\n\n```text\n%s\n%s\n```\n' "$issuance_output" "$message" >> "$GITHUB_STEP_SUMMARY"
   fi
   exit 0
 fi
@@ -185,5 +202,5 @@ receipt="INDEPENDENT PASS: batch ${BATCH_DATE}; ${elapsed_seconds}s; full-set re
 echo "$verify_output"
 echo "$receipt"
 if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
-  printf '## DeFIRE independent verification\n\n```text\n%s\n%s\n```\n' "$verify_output" "$receipt" >> "$GITHUB_STEP_SUMMARY"
+  printf '## DeFIRE independent verification\n\n```text\n%s\n%s\n%s\n```\n' "$issuance_output" "$verify_output" "$receipt" >> "$GITHUB_STEP_SUMMARY"
 fi

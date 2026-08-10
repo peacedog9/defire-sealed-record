@@ -8,6 +8,8 @@ on:
       - daily-index.json
       - issuance-index.json
       - verify-latest-reveal.sh
+      - verify-public-issuance.py
+      - digicert_assured_id_root_ca.crt
       - .github/workflows/verify-latest-reveal.yml
   schedule:
     - cron: "23 02 * * *"
@@ -31,6 +33,8 @@ jobs:
           DEFIRE_SEALED_MIRROR_INDEX_URL: https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/daily-index.json
           DEFIRE_SEALED_MIRROR_ISSUANCE_INDEX_URL: https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/issuance-index.json
         run: |
-          curl -fsSL "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_SHA}/verify-latest-reveal.sh" -o verify-latest-reveal.sh
+          for asset in verify-latest-reveal.sh verify-public-issuance.py digicert_assured_id_root_ca.crt; do
+            curl -fsSL "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_SHA}/${asset}" -o "${asset}"
+          done
           chmod 0755 verify-latest-reveal.sh
           ./verify-latest-reveal.sh
