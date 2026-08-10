@@ -18,3 +18,9 @@ cmp "$work/github.json" "$work/live.json" && echo "MATCH: GitHub witness equals 
 ```
 
 For full pick verification after the 7-day reveal, use the paste-ready command on [the live Sealed Record page](https://decentralizedfire.com/sealed-record/). It checks the complete count, every revealed field, DigiCert's signed UTC receipt, and the OpenTimestamps Bitcoin proof.
+
+## Independent fresh-machine check
+
+The public [verification workflow](https://github.com/peacedog9/defire-sealed-record/actions/workflows/verify-latest-reveal.yml) runs on a new GitHub-hosted Ubuntu runner whenever either hash index changes, once daily, and on manual request. It first requires the commit-pinned GitHub index to byte-match DeFIRE's live index. Once a nonempty batch reveals, it runs the public verifier below 120 seconds and then alters one downloaded entry and requires a loud tamper failure.
+
+The repository and workflow commit no signal plaintext. Revealed files exist only in the runner's temporary directory and are deleted with the runner.

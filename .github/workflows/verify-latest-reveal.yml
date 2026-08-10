@@ -1,0 +1,35 @@
+name: Verify latest revealed batch
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - daily-index.json
+      - issuance-index.json
+      - verify-latest-reveal.sh
+      - .github/workflows/verify-latest-reveal.yml
+  schedule:
+    - cron: "23 02 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sealed-record-independent-verification
+  cancel-in-progress: false
+
+jobs:
+  verify-public-record:
+    name: Fresh Ubuntu verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Run commit-pinned public verifier
+        env:
+          DEFIRE_SEALED_MIRROR_INDEX_URL: https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/daily-index.json
+        run: |
+          curl -fsSL "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_SHA}/verify-latest-reveal.sh" -o verify-latest-reveal.sh
+          chmod 0755 verify-latest-reveal.sh
+          ./verify-latest-reveal.sh
